@@ -29,7 +29,7 @@ def find_image_duplicates(folder, hash_size=8):
     return duplicates
 
 def main():
-    folder = 'C:/modsen/project/image1/dataset/data1'  # Укажите путь к вашей папке с изображениями
+    folder = 'C:/modsen/project/image1/dataset/data1'
 
     duplicates = find_image_duplicates(folder)
 
