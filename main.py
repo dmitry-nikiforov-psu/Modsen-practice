@@ -1,42 +1,9 @@
 import os
-from PIL import Image, ImageTk
-import imagehash
-from tqdm import tqdm
 import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
-
-def find_image_duplicates(folders, hash_size=8, progress_callback=None):
-    def get_image_paths(folders):
-        image_paths = []
-        for folder in folders:
-            image_paths.extend([os.path.join(folder, f) for f in os.listdir(folder) if f.lower().endswith(('png', 'jpg', 'jpeg', 'bmp', 'gif'))])
-        return image_paths
-
-    def compute_hash(image_path):
-        image = Image.open(image_path)
-        return imagehash.average_hash(image, hash_size=hash_size)
-
-    def find_duplicates_in_folders(folders):
-        image_paths = get_image_paths(folders)
-        hashes = {}
-        duplicates = []
-
-        total_images = len(image_paths)
-        for i, image_path in enumerate(tqdm(image_paths, desc="Анализ файла")):
-            img_hash = compute_hash(image_path)
-            if img_hash in hashes:
-                duplicates.append((hashes[img_hash], image_path))
-            else:
-                hashes[img_hash] = image_path
-
-            if progress_callback:
-                progress_callback(i + 1, total_images)
-
-        return duplicates
-
-    duplicates = find_duplicates_in_folders(folders)
-    return duplicates
+from PIL import Image, ImageTk
+from duplicate_finder import find_image_duplicates
 
 class DuplicateFinderApp:
     def __init__(self, root):
@@ -44,6 +11,7 @@ class DuplicateFinderApp:
         self.root.title("Поиск дубликатов")
 
         self.folders = []
+        self.duplicates = {}
 
         self.create_widgets()
 
@@ -62,9 +30,8 @@ class DuplicateFinderApp:
         self.progress = ttk.Progressbar(frame, orient="horizontal", length=400, mode="determinate")
         self.progress.grid(row=3, column=0, columnspan=3, pady=10)
 
-        self.tree = ttk.Treeview(frame, columns=("File 1", "File 2"), show="headings")
-        self.tree.heading("File 1", text="Файл 1")
-        self.tree.heading("File 2", text="Файл 2")
+        self.tree = ttk.Treeview(frame, columns=("File"), show="headings")
+        self.tree.heading("File", text="Файл")
         self.tree.grid(row=4, column=0, columnspan=3, pady=10)
 
         self.tree.bind("<Double-1>", self.on_double_click)
@@ -94,42 +61,48 @@ class DuplicateFinderApp:
             self.progress["value"] = (current / total) * 100
             self.root.update_idletasks()
 
-        duplicates = find_image_duplicates(self.folders, progress_callback=progress_callback)
+        self.duplicates = find_image_duplicates(self.folders, progress_callback=progress_callback)
 
         for item in self.tree.get_children():
             self.tree.delete(item)
 
-        if duplicates:
-            for dup in duplicates:
-                self.tree.insert("", "end", values=(os.path.basename(dup[0]), os.path.basename(dup[1])))
+        if self.duplicates:
+            for original in self.duplicates.keys():
+                self.tree.insert("", "end", values=(os.path.basename(original),))
         else:
             messagebox.showinfo("Info", "Дубликатов не найдено.")
 
     def on_double_click(self, event):
         item = self.tree.selection()[0]
-        file1, file2 = self.tree.item(item, "values")
+        file = self.tree.item(item, "values")[0]
 
-        self.show_image(file1)
-        self.show_image(file2)
+        self.show_duplicates(file)
 
-    def show_image(self, image_name):
+    def show_duplicates(self, file_name):
+        original_path = None
         for folder in self.folders:
-            image_path = os.path.join(folder, image_name)
-            if os.path.exists(image_path):
+            potential_path = os.path.join(folder, file_name)
+            if os.path.exists(potential_path):
+                original_path = potential_path
                 break
 
-        top = tk.Toplevel(self.root)
-        top.title(image_name)
+        if original_path and original_path in self.duplicates:
+            duplicates = self.duplicates[original_path]
+            top = tk.Toplevel(self.root)
+            top.title(f"Дубликаты {file_name}")
 
-        img = Image.open(image_path)
-        img.thumbnail((400, 400))
-        img = ImageTk.PhotoImage(img)
+            for dup in duplicates:
+                img = Image.open(dup)
+                img.thumbnail((400, 400))
+                img = ImageTk.PhotoImage(img)
 
-        panel = tk.Label(top, image=img)
-        panel.image = img
-        panel.pack()
+                panel = tk.Label(top, image=img)
+                panel.image = img
+                panel.pack()
 
-        tk.Button(top, text="Открыть файл", command=lambda: self.open_folder(image_path)).pack(pady=10)
+                tk.Button(top, text="Открыть папку", command=lambda p=dup: self.open_folder(p)).pack(pady=10)
+        else:
+            messagebox.showinfo("Info", "Дубликатов не найдено.")
 
     def open_folder(self, image_path):
         os.startfile(image_path)
@@ -144,15 +117,17 @@ class DuplicateFinderApp:
 
     def show_path(self):
         item = self.tree.selection()[0]
-        file1, file2 = self.tree.item(item, "values")
+        file = self.tree.item(item, "values")[0]
         for folder in self.folders:
-            path1 = os.path.join(folder, file1)
-            path2 = os.path.join(folder, file2)
-            if os.path.exists(path1) and os.path.exists(path2):
+            path = os.path.join(folder, file)
+            if os.path.exists(path):
+                messagebox.showinfo("Путь к файлу", f"Путь: {path}")
                 break
-        messagebox.showinfo("Путь", f"Файл 1: {path1}\nФайл 2: {path2}")
 
-if __name__ == "__main__":
+def main():
     root = tk.Tk()
     app = DuplicateFinderApp(root)
     root.mainloop()
+
+if __name__ == "__main__":
+    main()
