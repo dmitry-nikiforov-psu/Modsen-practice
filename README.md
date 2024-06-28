@@ -26,5 +26,5 @@
     5.Логирование действий пользователя и процесса поиска.
 
 
-   Автор: Dmitry Nikiforov (Polotsk State University)
-   Version Python: 3.11
+   Автор: Dmitry Nikiforov (Polotsk State University).
+   Version Python: 3.11.
