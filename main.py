@@ -3,7 +3,10 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 from tkinter import ttk
 from PIL import Image, ImageTk
-from duplicate_finder import find_image_duplicates
+from duplicate_finder import find_media_duplicates
+import logging
+
+logging.basicConfig(format='%(asctime)s - %(levelname)s - %(message)s', level=logging.INFO)
 
 class DuplicateFinderApp:
     def __init__(self, root):
@@ -42,12 +45,15 @@ class DuplicateFinderApp:
         if folder_selected:
             self.folders.append(folder_selected)
             self.folder_listbox.insert(tk.END, folder_selected)
+            logging.info(f"Папка добавлена: {folder_selected}")
 
     def remove_selected_folders(self):
         selected_indices = self.folder_listbox.curselection()
         for index in reversed(selected_indices):
+            folder = self.folders[index]
             self.folder_listbox.delete(index)
             del self.folders[index]
+            logging.info(f"Папка удалена: {folder}")
 
     def find_duplicates(self):
         if not self.folders:
@@ -61,7 +67,9 @@ class DuplicateFinderApp:
             self.progress["value"] = (current / total) * 100
             self.root.update_idletasks()
 
-        self.duplicates = find_image_duplicates(self.folders, progress_callback=progress_callback)
+        logging.info("Начат поиск дубликатов.")
+        self.duplicates = find_media_duplicates(self.folders, progress_callback=progress_callback)
+        logging.info("Поиск дубликатов завершен.")
 
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -71,6 +79,8 @@ class DuplicateFinderApp:
                 self.tree.insert("", "end", values=(os.path.basename(original),))
         else:
             messagebox.showinfo("Info", "Дубликатов не найдено.")
+            logging.info("Дубликаты не найдены.")
+
 
     def on_double_click(self, event):
         item = self.tree.selection()[0]
@@ -106,6 +116,7 @@ class DuplicateFinderApp:
 
     def open_folder(self, image_path):
         os.startfile(image_path)
+        logging.info(f"Открыта папка: {image_path}")
 
     def on_right_click(self, event):
         item = self.tree.identify_row(event.y)
@@ -122,6 +133,7 @@ class DuplicateFinderApp:
             path = os.path.join(folder, file)
             if os.path.exists(path):
                 messagebox.showinfo("Путь к файлу", f"Путь: {path}")
+                logging.info(f"Показан путь к файлу: {path}")
                 break
 
 def main():
